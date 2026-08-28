@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>HEISEI KAWAII♡</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #000;
+      font-family: sans-serif;
+      user-select: none;
+    }
+    #container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    /* カメラ映像 */
+    #video {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 1;
+    }
+    /* 平成風フレーム画像 */
+    #frame {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      z-index: 2;
+      pointer-events: none;
+    }
+    /* カメラ起動ボタン */
+    #start-btn {
+      position: absolute;
+      z-index: 10;
+      background: #ff1493;
+      color: #fff;
+      padding: 18px 32px;
+      border-radius: 50px;
+      font-weight: bold;
+      font-size: 18px;
+      text-align: center;
+      box-shadow: 0 4px 15px rgba(255, 20, 147, 0.6);
+      border: 3px solid #fff;
+      cursor: pointer;
+    }
+    /* 案内テキスト（タップで消失） */
+    #guide {
+      position: absolute;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 3;
+      background: rgba(255, 105, 180, 0.9);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 25px;
+      font-weight: bold;
+      font-size: 13px;
+      text-align: center;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      white-space: nowrap;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+<div id="container" onclick="toggleGuide()">
+  <!-- スタートボタン -->
+  <div id="start-btn" onclick="initCamera(event)">💖 タップしてカメラスタート 💖</div>
+
+  <!-- カメラ映像 -->
+  <video id="video" autoplay playsinline muted></video>
+  
+  <!-- 平成風フレーム（同じフォルダの frame.png を読み込みます） -->
+  <img id="frame" src="frame.png" alt="平成フレーム">
+
+  <!-- 案内表記 -->
+  <div id="guide">💖 画面タップで文字を消してスクショしてね 💖</div>
+</div>
+
+<script>
+  const video = document.getElementById('video');
+  const startBtn = document.getElementById('start-btn');
+  const guide = document.getElementById('guide');
+  let isCameraActive = false;
+
+  async function initCamera(event) {
+    if(event) event.stopPropagation();
+
+    try {
+      // 背面カメラ（外カメラ）を優先起動
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false
+      });
+      video.srcObject = stream;
+      await video.play();
+      
+      startBtn.style.display = 'none';
+      guide.style.display = 'block';
+      isCameraActive = true;
+    } catch (err) {
+      console.error("標準カメラへ切り替え:", err);
+      try {
+        // フォールバック（インカメラ等）
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false
+        });
+        video.srcObject = stream;
+        await video.play();
+        
+        startBtn.style.display = 'none';
+        guide.style.display = 'block';
+        isCameraActive = true;
+      } catch (e) {
+        alert("カメラの起動が許可されませんでした。スマホの設定でブラウザのカメラアクセスを許可してください。");
+      }
+    }
+  }
+
+  function toggleGuide() {
+    if (!isCameraActive) return;
+    if (guide.style.display === 'none') {
+      guide.style.display = 'block';
+    } else {
+      guide.style.display = 'none';
+    }
+  }
+</script>
+
+</body>
+</html>
