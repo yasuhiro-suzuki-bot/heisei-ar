@@ -26,7 +26,7 @@
       justify-content: center;
       align-items: center;
     }
-    /* カメラ映像 */
+    /* リアルタイムカメラ映像 */
     #video {
       position: absolute;
       width: 100%;
@@ -34,7 +34,7 @@
       object-fit: cover;
       z-index: 1;
     }
-    /* 平成風フレーム画像 */
+    /* フレーム画像 */
     #frame {
       position: absolute;
       width: 100%;
@@ -43,7 +43,11 @@
       z-index: 2;
       pointer-events: none;
     }
-    /* カメラ起動ボタン */
+    /* 内部計算用（非表示） */
+    #canvas {
+      display: none;
+    }
+    /* スタートボタン */
     #start-btn {
       position: absolute;
       z-index: 10;
@@ -53,95 +57,157 @@
       border-radius: 50px;
       font-weight: bold;
       font-size: 18px;
-      text-align: center;
       box-shadow: 0 4px 15px rgba(255, 20, 147, 0.6);
       border: 3px solid #fff;
       cursor: pointer;
     }
-    /* 案内テキスト（タップで消失） */
-    #guide {
+    /* シャッターボタン */
+    #shutter-btn {
       position: absolute;
-      bottom: 40px;
+      bottom: 30px;
       left: 50%;
       transform: translateX(-50%);
-      z-index: 3;
-      background: rgba(255, 105, 180, 0.9);
-      color: #fff;
-      padding: 10px 20px;
-      border-radius: 25px;
-      font-weight: bold;
-      font-size: 13px;
-      text-align: center;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-      white-space: nowrap;
+      z-index: 5;
+      width: 75px;
+      height: 75px;
+      border-radius: 50%;
+      background: #fff;
+      border: 6px solid #ff69b4;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.4);
       display: none;
+      cursor: pointer;
+    }
+    #shutter-btn:active {
+      transform: translateX(-50%) scale(0.92);
+    }
+    /* 撮影結果モーダル */
+    #result-modal {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 20;
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    #preview-img {
+      max-width: 90%;
+      max-height: 70vh;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(255, 105, 180, 0.8);
+    }
+    .btn-group {
+      margin-top: 20px;
+      display: flex;
+      gap: 15px;
+    }
+    .action-btn {
+      padding: 12px 24px;
+      border-radius: 30px;
+      font-weight: bold;
+      font-size: 14px;
+      border: none;
+      cursor: pointer;
+    }
+    #save-btn {
+      background: #ff1493;
+      color: #fff;
+    }
+    #retry-btn {
+      background: #fff;
+      color: #333;
     }
   </style>
 </head>
 <body>
 
-<div id="container" onclick="toggleGuide()">
-  <!-- スタートボタン -->
-  <div id="start-btn" onclick="initCamera(event)">💖 タップしてカメラスタート 💖</div>
+<div id="container">
+  <!-- カメラ起動ボタン -->
+  <div id="start-btn" onclick="initCamera()">💖 カメラスタート 💖</div>
 
-  <!-- カメラ映像 -->
+  <!-- カメラ映像 ＆ フレーム -->
   <video id="video" autoplay playsinline muted></video>
-  
-  <!-- 平成風フレーム（同じフォルダの frame.png を読み込みます） -->
   <img id="frame" src="frame.png" alt="平成フレーム">
 
-  <!-- 案内表記 -->
-  <div id="guide">💖 画面タップで文字を消してスクショしてね 💖</div>
+  <!-- シャッターボタン -->
+  <button id="shutter-btn" onclick="takePhoto()"></button>
+
+  <!-- 合成用キャンバス（画面非表示） -->
+  <canvas id="canvas"></canvas>
+
+  <!-- 撮影後のプレビュー画面 -->
+  <div id="result-modal">
+    <img id="preview-img" alt="撮影結果">
+    <p style="color:#fff; font-size:12px; margin-top:8px;">※長押しまたは保存ボタンで画像を端末に保存してね</p>
+    <div class="btn-group">
+      <button class="action-btn" id="retry-btn" onclick="closePreview()">もう一度撮る</button>
+      <a id="download-link" download="HEISEI_KAWAII.png">
+        <button class="action-btn" id="save-btn">画像を保存</button>
+      </a>
+    </div>
+  </div>
 </div>
 
 <script>
   const video = document.getElementById('video');
+  const frame = document.getElementById('frame');
+  const canvas = document.getElementById('canvas');
   const startBtn = document.getElementById('start-btn');
-  const guide = document.getElementById('guide');
-  let isCameraActive = false;
+  const shutterBtn = document.getElementById('shutter-btn');
+  const resultModal = document.getElementById('result-modal');
+  const previewImg = document.getElementById('preview-img');
+  const downloadLink = document.getElementById('download-link');
 
-  async function initCamera(event) {
-    if(event) event.stopPropagation();
-
+  // カメラの起動
+  async function initCamera() {
     try {
-      // 背面カメラ（外カメラ）を優先起動
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" } },
+        video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
         audio: false
       });
       video.srcObject = stream;
       await video.play();
       
       startBtn.style.display = 'none';
-      guide.style.display = 'block';
-      isCameraActive = true;
+      shutterBtn.style.display = 'block';
     } catch (err) {
-      console.error("標準カメラへ切り替え:", err);
-      try {
-        // フォールバック（インカメラ等）
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: false
-        });
-        video.srcObject = stream;
-        await video.play();
-        
-        startBtn.style.display = 'none';
-        guide.style.display = 'block';
-        isCameraActive = true;
-      } catch (e) {
-        alert("カメラの起動が許可されませんでした。スマホの設定でブラウザのカメラアクセスを許可してください。");
-      }
+      alert("カメラの起動に失敗しました。ブラウザのカメラ権限を確認してください。");
     }
   }
 
-  function toggleGuide() {
-    if (!isCameraActive) return;
-    if (guide.style.display === 'none') {
-      guide.style.display = 'block';
-    } else {
-      guide.style.display = 'none';
+  // シャッターを押してフレームと映像を合成
+  function takePhoto() {
+    const context = canvas.getContext('2d');
+    
+    // 画面解像度に合わせたキャンバスサイズ変更
+    canvas.width = video.videoWidth || window.innerWidth;
+    canvas.height = video.videoHeight || window.innerHeight;
+
+    // 1. カメラ映像を描画
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // 2. フレーム画像を重ねて描画
+    if (frame.complete && frame.naturalWidth !== 0) {
+      context.drawImage(frame, 0, 0, canvas.width, canvas.height);
     }
+
+    // 3. 合成画像をデータ化してプレビュー表示
+    const dataUrl = canvas.toDataURL('image/png');
+    previewImg.src = dataUrl;
+    downloadLink.href = dataUrl;
+
+    resultModal.style.style.display = 'none'; // リセット
+    resultModal.style.display = 'flex';
+  }
+
+  // プレビューを閉じて再撮影
+  function closePreview() {
+    resultModal.style.display = 'none';
   }
 </script>
 
