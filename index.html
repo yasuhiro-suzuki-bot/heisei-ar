@@ -11,8 +11,8 @@
       padding: 0;
     }
     body, html {
-      width: 100%;
-      height: 100%;
+      width: 100vw;
+      height: 100dvh; /* スマホのアドレスバー可変に対応 */
       overflow: hidden;
       background-color: #000;
       font-family: sans-serif;
@@ -21,7 +21,7 @@
     #container {
       position: relative;
       width: 100vw;
-      height: 100vh;
+      height: 100dvh; /* 動的高さに対応 */
       overflow: hidden;
     }
     /* リアルタイムカメラ映像 */
@@ -34,7 +34,7 @@
       object-fit: cover;
       z-index: 1;
     }
-    /* フレーム画像（最初は非表示） */
+    /* フレーム画像 */
     #frame {
       position: absolute;
       top: 0;
@@ -44,9 +44,8 @@
       object-fit: fill;
       z-index: 2;
       pointer-events: none;
-      display: none; /* 初期状態は非表示 */
+      display: none;
     }
-    /* 内部計算用（非表示） */
     #canvas {
       display: none;
     }
@@ -66,57 +65,58 @@
       box-shadow: 0 4px 15px rgba(255, 20, 147, 0.6);
       border: 3px solid #fff;
       cursor: pointer;
-      white-space: nowrap; /* ★文字を絶対に改行させない */
+      white-space: nowrap;
     }
-    /* 操作UI領域 */
+    /* 操作UI領域（画面下部・セーフエリア対応） */
     #ui-container {
       position: absolute;
-      bottom: 20px;
+      bottom: max(20px, env(safe-area-inset-bottom)); /* iPhoneの下部セーフエリアを確保 */
       left: 50%;
       transform: translateX(-50%);
       z-index: 5;
       display: none;
       flex-direction: column;
       align-items: center;
-      gap: 15px;
-      width: 90%;
-      max-width: 400px;
+      gap: 10px;
+      width: 92%;
+      max-width: 380px;
     }
     /* フレーム切り替えボタンバー */
     .frame-selector {
       display: flex;
-      gap: 8px;
-      background: rgba(0, 0, 0, 0.6);
-      padding: 8px;
+      gap: 6px;
+      background: rgba(0, 0, 0, 0.65);
+      padding: 6px 10px;
       border-radius: 30px;
       backdrop-filter: blur(5px);
       width: 100%;
       justify-content: center;
     }
     .frame-btn {
-      background: rgba(255, 255, 255, 0.8);
+      background: rgba(255, 255, 255, 0.85);
       color: #333;
       border: 2px solid #fff;
       border-radius: 20px;
-      padding: 6px 12px;
+      padding: 6px 8px;
       font-size: 11px;
       font-weight: bold;
       cursor: pointer;
       transition: all 0.2s;
       flex: 1;
       text-align: center;
+      white-space: nowrap;
     }
     .frame-btn.active {
       background: #ff1493;
       color: #fff;
       border-color: #fff;
-      transform: scale(1.05);
+      transform: scale(1.03);
       box-shadow: 0 0 10px rgba(255, 20, 147, 0.8);
     }
     /* シャッターボタン */
     #shutter-btn {
-      width: 70px;
-      height: 70px;
+      width: 65px;
+      height: 65px;
       border-radius: 50%;
       background: #fff;
       border: 5px solid #ff69b4;
@@ -132,18 +132,18 @@
       top: 0;
       left: 0;
       width: 100vw;
-      height: 100vh;
+      height: 100dvh;
       background: rgba(0, 0, 0, 0.9);
       z-index: 20;
       display: none;
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      padding: 20px;
+      padding: 15px;
     }
     #preview-img {
-      max-width: 90%;
-      max-height: 70vh;
+      max-width: 85%;
+      max-height: 60vh;
       border-radius: 12px;
       box-shadow: 0 0 20px rgba(255, 105, 180, 0.8);
       user-select: auto !important;
@@ -151,9 +151,9 @@
     }
     .guide-text {
       color: #fff;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: bold;
-      margin-top: 15px;
+      margin-top: 12px;
       background: #ff1493;
       padding: 8px 16px;
       border-radius: 20px;
@@ -161,7 +161,7 @@
       text-align: center;
     }
     .btn-group {
-      margin-top: 15px;
+      margin-top: 12px;
     }
     .action-btn {
       padding: 10px 24px;
@@ -178,11 +178,14 @@
 <body>
 
 <div id="container">
+  <!-- スタートボタン -->
   <div id="start-btn" onclick="initCamera()">💖 カメラスタート 💖</div>
 
+  <!-- カメラ映像 ＆ フレーム -->
   <video id="video" autoplay playsinline muted></video>
   <img id="frame" src="frame1.PNG" alt="平成フレーム">
 
+  <!-- 操作UI（セーフエリア・レスポンシブ対応） -->
   <div id="ui-container">
     <div class="frame-selector">
       <button class="frame-btn active" onclick="changeFrame('frame1.PNG', this)">枠 ①</button>
@@ -193,8 +196,10 @@
     <button id="shutter-btn" onclick="takePhoto()"></button>
   </div>
 
+  <!-- 合成用キャンバス -->
   <canvas id="canvas"></canvas>
 
+  <!-- 撮影後のプレビュー画面 -->
   <div id="result-modal">
     <img id="preview-img" alt="撮影結果">
     <div class="guide-text">👆 画像を長押しして「写真に保存」してね 💖</div>
@@ -225,7 +230,7 @@
       
       startBtn.style.display = 'none';
       uiContainer.style.display = 'flex';
-      frame.style.display = 'block'; // ★カメラ起動後にフレームを表示
+      frame.style.display = 'block';
     } catch (err) {
       alert("カメラの起動に失敗しました。ブラウザのカメラ権限を確認してください。");
     }
@@ -235,7 +240,6 @@
   function changeFrame(fileName, btnElement) {
     frame.src = fileName;
     
-    // ボタンのハイライト表示切り替え
     const buttons = document.querySelectorAll('.frame-btn');
     buttons.forEach(btn => btn.classList.remove('active'));
     btnElement.classList.add('active');
@@ -245,19 +249,15 @@
   function takePhoto() {
     const context = canvas.getContext('2d');
     
-    // 画面の解像度に合わせてキャンバスサイズを設定
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
 
-    // 1. カメラ映像を描画
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // 2. 現在選択中のフレームを描画（全面にフィットさせる）
     if (frame.complete && frame.naturalWidth !== 0) {
       context.drawImage(frame, 0, 0, canvas.width, canvas.height);
     }
 
-    // 3. モーダル表示
     const dataUrl = canvas.toDataURL('image/png');
     previewImg.src = dataUrl;
     resultModal.style.display = 'flex';
