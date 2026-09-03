@@ -12,7 +12,7 @@
     }
     body, html {
       width: 100vw;
-      height: 100dvh; /* スマホのアドレスバー可変に対応 */
+      height: 100dvh;
       overflow: hidden;
       background-color: #000;
       font-family: sans-serif;
@@ -21,7 +21,7 @@
     #container {
       position: relative;
       width: 100vw;
-      height: 100dvh; /* 動的高さに対応 */
+      height: 100dvh;
       overflow: hidden;
     }
     /* リアルタイムカメラ映像 */
@@ -33,6 +33,10 @@
       height: 100%;
       object-fit: cover;
       z-index: 1;
+    }
+    /* インカメラ時の鏡像反転用CSS */
+    #video.mirror {
+      transform: scaleX(-1);
     }
     /* フレーム画像 */
     #frame {
@@ -67,10 +71,10 @@
       cursor: pointer;
       white-space: nowrap;
     }
-    /* 操作UI領域（画面下部・セーフエリア対応） */
+    /* 操作UI領域 */
     #ui-container {
       position: absolute;
-      bottom: max(20px, env(safe-area-inset-bottom)); /* iPhoneの下部セーフエリアを確保 */
+      bottom: max(20px, env(safe-area-inset-bottom));
       left: 50%;
       transform: translateX(-50%);
       z-index: 5;
@@ -113,6 +117,15 @@
       transform: scale(1.03);
       box-shadow: 0 0 10px rgba(255, 20, 147, 0.8);
     }
+    /* ボタン配置用の行 */
+    .shutter-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      width: 100%;
+      position: relative;
+    }
     /* シャッターボタン */
     #shutter-btn {
       width: 65px;
@@ -125,6 +138,22 @@
     }
     #shutter-btn:active {
       transform: scale(0.92);
+    }
+    /* カメラ切り替えボタン */
+    #flip-btn {
+      background: rgba(0, 0, 0, 0.65);
+      color: #fff;
+      border: 2px solid #fff;
+      border-radius: 50%;
+      width: 44px;
+      height: 44px;
+      font-size: 18px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      backdrop-filter: blur(5px);
     }
     /* 撮影結果モーダル */
     #result-modal {
@@ -185,7 +214,7 @@
   <video id="video" autoplay playsinline muted></video>
   <img id="frame" src="frame1.PNG" alt="平成フレーム">
 
-  <!-- 操作UI（セーフエリア・レスポンシブ対応） -->
+  <!-- 操作UI -->
   <div id="ui-container">
     <div class="frame-selector">
       <button class="frame-btn active" onclick="changeFrame('frame1.PNG', this)">枠 ①</button>
@@ -193,7 +222,12 @@
       <button class="frame-btn" onclick="changeFrame('frame3.PNG', this)">枠 ③</button>
       <button class="frame-btn" onclick="changeFrame('frame4.PNG', this)">枠 ④</button>
     </div>
-    <button id="shutter-btn" onclick="takePhoto()"></button>
+    
+    <div class="shutter-row">
+      <button id="shutter-btn" onclick="takePhoto()"></button>
+      <!-- カメラ反転ボタン -->
+      <button id="flip-btn" onclick="toggleCamera()" title="カメラ切り替え">🔄</button>
+    </div>
   </div>
 
   <!-- 合成用キャンバス -->
@@ -218,28 +252,59 @@
   const resultModal = document.getElementById('result-modal');
   const previewImg = document.getElementById('preview-img');
 
-  // カメラ起動
-  async function initCamera() {
+  let currentStream = null;
+  let useFacingMode = "environment"; // 初期値をアウトカメラ ("environment") に設定
+
+  // カメラ起動処理
+  async function startCamera() {
+    if (currentStream) {
+      currentStream.getTracks().forEach(track => track.stop());
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        video: { facingMode: { exact: useFacingMode }, width: { ideal: 1920 }, height: { ideal: 1080 } },
         audio: false
+      }).catch(async () => {
+        return await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: useFacingMode, width: { ideal: 1920 }, height: { ideal: 1080 } },
+          audio: false
+        });
       });
+
+      currentStream = stream;
       video.srcObject = stream;
       await video.play();
-      
-      startBtn.style.display = 'none';
-      uiContainer.style.display = 'flex';
-      frame.style.display = 'block';
+
+      // インカメラ時のみ画面表示を左右反転させる
+      if (useFacingMode === "user") {
+        video.classList.add('mirror');
+      } else {
+        video.classList.remove('mirror');
+      }
+
     } catch (err) {
-      alert("カメラの起動に失敗しました。ブラウザのカメラ権限を確認してください。");
+      alert("カメラの起動に失敗しました。権限や端末のカメラ状態を確認してください。");
     }
   }
 
-  // フレーム切り替え関数
+  // 初期起動ボタンの処理
+  async function initCamera() {
+    await startCamera();
+    startBtn.style.display = 'none';
+    uiContainer.style.display = 'flex';
+    frame.style.display = 'block';
+  }
+
+  // 内/外カメラの切り替え
+  async function toggleCamera() {
+    useFacingMode = (useFacingMode === "environment") ? "user" : "environment";
+    await startCamera();
+  }
+
+  // フレーム切り替え
   function changeFrame(fileName, btnElement) {
     frame.src = fileName;
-    
     const buttons = document.querySelectorAll('.frame-btn');
     buttons.forEach(btn => btn.classList.remove('active'));
     btnElement.classList.add('active');
@@ -248,16 +313,28 @@
   // 撮影＆合成処理
   function takePhoto() {
     const context = canvas.getContext('2d');
-    
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
 
+    // インカメラ時は左右反転して写真に反映
+    if (useFacingMode === "user") {
+      context.translate(canvas.width, 0);
+      context.scale(-1, 1);
+    }
+    
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
+    // 左右反転状態をリセット
+    if (useFacingMode === "user") {
+      context.setTransform(1, 0, 0, 1, 0, 0);
+    }
+
+    // フレームを描画
     if (frame.complete && frame.naturalWidth !== 0) {
       context.drawImage(frame, 0, 0, canvas.width, canvas.height);
     }
 
+    // モーダル表示
     const dataUrl = canvas.toDataURL('image/png');
     previewImg.src = dataUrl;
     resultModal.style.display = 'flex';
