@@ -61,24 +61,57 @@
       border: 3px solid #fff;
       cursor: pointer;
     }
+    /* 操作UI領域（シャッター＆フレーム選択） */
+    #ui-container {
+      position: absolute;
+      bottom: 20px;
+      left: 0;
+      width: 100%;
+      z-index: 5;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
+    }
+    /* フレーム切り替えボタンバー */
+    .frame-selector {
+      display: flex;
+      gap: 10px;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 8px 16px;
+      border-radius: 30px;
+      backdrop-filter: blur(5px);
+    }
+    .frame-btn {
+      background: rgba(255, 255, 255, 0.7);
+      color: #333;
+      border: 2px solid #fff;
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .frame-btn.active {
+      background: #ff1493;
+      color: #fff;
+      border-color: #fff;
+      transform: scale(1.1);
+      box-shadow: 0 0 10px rgba(255, 20, 147, 0.8);
+    }
     /* シャッターボタン */
     #shutter-btn {
-      position: absolute;
-      bottom: 30px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 5;
-      width: 75px;
-      height: 75px;
+      width: 70px;
+      height: 70px;
       border-radius: 50%;
       background: #fff;
-      border: 6px solid #ff69b4;
+      border: 5px solid #ff69b4;
       box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-      display: none;
       cursor: pointer;
     }
     #shutter-btn:active {
-      transform: translateX(-50%) scale(0.92);
+      transform: scale(0.92);
     }
     /* 撮影結果モーダル */
     #result-modal {
@@ -95,7 +128,6 @@
       align-items: center;
       padding: 20px;
     }
-    /* 生成された画像（長押しできるようにuser-selectを許可） */
     #preview-img {
       max-width: 85%;
       max-height: 65vh;
@@ -132,20 +164,31 @@
 <body>
 
 <div id="container">
+  <!-- スタートボタン -->
   <div id="start-btn" onclick="initCamera()">💖 カメラスタート 💖</div>
 
+  <!-- カメラ映像 ＆ フレーム -->
   <video id="video" autoplay playsinline muted></video>
-  <img id="frame" src="frame.png" alt="平成フレーム">
+  <img id="frame" src="frame1.png" alt="平成フレーム">
 
-  <button id="shutter-btn" onclick="takePhoto()"></button>
+  <!-- 操作UI（フレーム選択 ＋ シャッター） -->
+  <div id="ui-container">
+    <div class="frame-selector">
+      <button class="frame-btn active" onclick="changeFrame('frame1.png', this)">枠 ①</button>
+      <button class="frame-btn" onclick="changeFrame('frame2.png', this)">枠 ②</button>
+      <button class="frame-btn" onclick="changeFrame('frame3.png', this)">枠 ③</button>
+      <button class="frame-btn" onclick="changeFrame('frame4.png', this)">枠 ④</button>
+    </div>
+    <button id="shutter-btn" onclick="takePhoto()"></button>
+  </div>
 
+  <!-- 合成用キャンバス -->
   <canvas id="canvas"></canvas>
 
+  <!-- 撮影後のプレビュー画面 -->
   <div id="result-modal">
     <img id="preview-img" alt="撮影結果">
-    
     <div class="guide-text">👆 画像を長押しして「写真に保存」してね 💖</div>
-
     <div class="btn-group">
       <button class="action-btn" onclick="closePreview()">もう一度撮る</button>
     </div>
@@ -157,11 +200,11 @@
   const frame = document.getElementById('frame');
   const canvas = document.getElementById('canvas');
   const startBtn = document.getElementById('start-btn');
-  const shutterBtn = document.getElementById('shutter-btn');
+  const uiContainer = document.getElementById('ui-container');
   const resultModal = document.getElementById('result-modal');
   const previewImg = document.getElementById('preview-img');
 
-  // カメラの起動
+  // カメラ起動
   async function initCamera() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -172,37 +215,42 @@
       await video.play();
       
       startBtn.style.display = 'none';
-      shutterBtn.style.display = 'block';
+      uiContainer.style.display = 'flex';
     } catch (err) {
       alert("カメラの起動に失敗しました。ブラウザのカメラ権限を確認してください。");
     }
   }
 
-  // シャッターを押してフレームと映像を合成
+  // フレーム切り替え関数
+  function changeFrame(fileName, btnElement) {
+    frame.src = fileName;
+    
+    // ボタンのハイライト表示切り替え
+    const buttons = document.querySelectorAll('.frame-btn');
+    buttons.forEach(btn => btn.classList.remove('active'));
+    btnElement.classList.add('active');
+  }
+
+  // 撮影＆合成処理
   function takePhoto() {
     const context = canvas.getContext('2d');
-    
-    // 画面解像度に合わせたキャンバスサイズ変更
     canvas.width = video.videoWidth || window.innerWidth;
     canvas.height = video.videoHeight || window.innerHeight;
 
     // 1. カメラ映像を描画
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // 2. フレーム画像を重ねて描画
+    // 2. 現在選択中のフレームを描画
     if (frame.complete && frame.naturalWidth !== 0) {
       context.drawImage(frame, 0, 0, canvas.width, canvas.height);
     }
 
-    // 3. 合成画像をデータ化してプレビュー表示
+    // 3. モーダル表示
     const dataUrl = canvas.toDataURL('image/png');
     previewImg.src = dataUrl;
-
-    // モーダルを表示
     resultModal.style.display = 'flex';
   }
 
-  // プレビューを閉じて再撮影
   function closePreview() {
     resultModal.style.display = 'none';
   }
