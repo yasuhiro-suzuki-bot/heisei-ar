@@ -167,17 +167,17 @@
   <!-- スタートボタン -->
   <div id="start-btn" onclick="initCamera()">💖 カメラスタート 💖</div>
 
-  <!-- カメラ映像 ＆ フレーム -->
+  <!-- カメラ映像 ＆ フレーム（初期読み込みを大文字.PNGに変更） -->
   <video id="video" autoplay playsinline muted></video>
-  <img id="frame" src="frame1.png" alt="平成フレーム">
+  <img id="frame" src="frame1.PNG" alt="平成フレーム">
 
-  <!-- 操作UI（フレーム選択 ＋ シャッター） -->
+  <!-- 操作UI（ボタン切り替え先も大文字.PNGに変更） -->
   <div id="ui-container">
     <div class="frame-selector">
-      <button class="frame-btn active" onclick="changeFrame('frame1.png', this)">枠 ①</button>
-      <button class="frame-btn" onclick="changeFrame('frame2.png', this)">枠 ②</button>
-      <button class="frame-btn" onclick="changeFrame('frame3.png', this)">枠 ③</button>
-      <button class="frame-btn" onclick="changeFrame('frame4.png', this)">枠 ④</button>
+      <button class="frame-btn active" onclick="changeFrame('frame1.PNG', this)">枠 ①</button>
+      <button class="frame-btn" onclick="changeFrame('frame2.PNG', this)">枠 ②</button>
+      <button class="frame-btn" onclick="changeFrame('frame3.PNG', this)">枠 ③</button>
+      <button class="frame-btn" onclick="changeFrame('frame4.PNG', this)">枠 ④</button>
     </div>
     <button id="shutter-btn" onclick="takePhoto()"></button>
   </div>
