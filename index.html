@@ -82,15 +82,15 @@
       flex-direction: column;
       align-items: center;
       gap: 10px;
-      width: 92%;
-      max-width: 380px;
+      width: 95%;
+      max-width: 400px;
     }
-    /* フレーム切り替えボタンバー */
+    /* フレーム切り替えボタンバー（5個並び用に微調整） */
     .frame-selector {
       display: flex;
-      gap: 6px;
+      gap: 4px;
       background: rgba(0, 0, 0, 0.65);
-      padding: 6px 10px;
+      padding: 6px 8px;
       border-radius: 30px;
       backdrop-filter: blur(5px);
       width: 100%;
@@ -101,7 +101,7 @@
       color: #333;
       border: 2px solid #fff;
       border-radius: 20px;
-      padding: 6px 8px;
+      padding: 6px 4px;
       font-size: 11px;
       font-weight: bold;
       cursor: pointer;
@@ -207,33 +207,28 @@
 <body>
 
 <div id="container">
-  <!-- スタートボタン -->
   <div id="start-btn" onclick="initCamera()">💖 カメラスタート 💖</div>
 
-  <!-- カメラ映像 ＆ フレーム -->
   <video id="video" autoplay playsinline muted></video>
   <img id="frame" src="frame1.PNG" alt="平成フレーム">
 
-  <!-- 操作UI -->
   <div id="ui-container">
     <div class="frame-selector">
       <button class="frame-btn active" onclick="changeFrame('frame1.PNG', this)">枠 ①</button>
       <button class="frame-btn" onclick="changeFrame('frame2.PNG', this)">枠 ②</button>
       <button class="frame-btn" onclick="changeFrame('frame3.PNG', this)">枠 ③</button>
       <button class="frame-btn" onclick="changeFrame('frame4.PNG', this)">枠 ④</button>
+      <button class="frame-btn" onclick="changeFrame('frame5.PNG', this)">㊙</button>
     </div>
     
     <div class="shutter-row">
       <button id="shutter-btn" onclick="takePhoto()"></button>
-      <!-- カメラ反転ボタン -->
       <button id="flip-btn" onclick="toggleCamera()" title="カメラ切り替え">🔄</button>
     </div>
   </div>
 
-  <!-- 合成用キャンバス -->
   <canvas id="canvas"></canvas>
 
-  <!-- 撮影後のプレビュー画面 -->
   <div id="result-modal">
     <img id="preview-img" alt="撮影結果">
     <div class="guide-text">👆 画像を長押しして「写真に保存」してね 💖</div>
@@ -253,7 +248,7 @@
   const previewImg = document.getElementById('preview-img');
 
   let currentStream = null;
-  let useFacingMode = "environment"; // 初期値をアウトカメラ ("environment") に設定
+  let useFacingMode = "environment";
 
   // カメラ起動処理
   async function startCamera() {
@@ -276,7 +271,6 @@
       video.srcObject = stream;
       await video.play();
 
-      // インカメラ時のみ画面表示を左右反転させる
       if (useFacingMode === "user") {
         video.classList.add('mirror');
       } else {
@@ -316,7 +310,6 @@
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
 
-    // インカメラ時は左右反転して写真に反映
     if (useFacingMode === "user") {
       context.translate(canvas.width, 0);
       context.scale(-1, 1);
@@ -324,17 +317,14 @@
     
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // 左右反転状態をリセット
     if (useFacingMode === "user") {
       context.setTransform(1, 0, 0, 1, 0, 0);
     }
 
-    // フレームを描画
     if (frame.complete && frame.naturalWidth !== 0) {
       context.drawImage(frame, 0, 0, canvas.width, canvas.height);
     }
 
-    // モーダル表示
     const dataUrl = canvas.toDataURL('image/png');
     previewImg.src = dataUrl;
     resultModal.style.display = 'flex';
